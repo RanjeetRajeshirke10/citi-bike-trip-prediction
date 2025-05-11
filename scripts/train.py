@@ -6,26 +6,31 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.feature_selection import SelectKBest, f_regression
 import mlflow
 import mlflow.sklearn
+import hopsworks
 import os
 
 # Debug: Print current working directory
 print("Current working directory:", os.getcwd())
 
-# Create mlruns directory if it doesn't exist
-mlruns_dir = os.path.join(os.getcwd(), "mlruns")
-if not os.path.exists(mlruns_dir):
-    os.makedirs(mlruns_dir)
-    print(f"Created mlruns directory: {mlruns_dir}")
+# Step 1: Log in to Hopsworks
+print("Logging in to Hopsworks...")
+project = hopsworks.login(
+    host="c.app.hopsworks.ai",
+    project="CitiBikeTrip",
+    api_key_value=os.getenv("HOPSWORKS_API_KEY")
+)
+print("Logged in successfully.")
 
-# Set MLflow tracking URI to the local mlruns directory
-mlflow.set_tracking_uri(mlruns_dir)
+# Step 2: Set MLflow tracking URI to Hopsworks
+tracking_uri = project.get_mlflow_tracking_uri()
+mlflow.set_tracking_uri(tracking_uri)
 print("MLflow tracking URI set to:", mlflow.get_tracking_uri())
 
-# Step 1: Load the processed data
+# Step 3: Load the processed data
 df = pd.read_csv('data/processed_trips_top_3.csv')
 df['start_hour'] = pd.to_datetime(df['start_hour'])
 
-# Step 2: Create lag features efficiently
+# Step 4: Create lag features efficiently
 all_station_data = []
 for station in df['start_station_name'].unique():
     station_data = df[df['start_station_name'] == station].sort_values('start_hour').copy()
@@ -36,18 +41,18 @@ for station in df['start_station_name'].unique():
 df = pd.concat(all_station_data, ignore_index=True)
 df = df.dropna()
 
-# Step 3: Prepare features and target
+# Step 5: Prepare features and target
 X = df[[f'lag_{i}' for i in range(1, 673)]]
 y = df['trip_count']
 
-# Step 4: Train/test split
+# Step 6: Train/test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 X_train.to_csv('data/X_train.csv', index=False)
 X_test.to_csv('data/X_test.csv', index=False)
 y_train.to_csv('data/y_train.csv', index=False)
 y_test.to_csv('data/y_test.csv', index=False)
 
-# Step 5: Set MLflow experiment
+# Step 7: Set MLflow experiment
 mlflow.set_experiment("CitiBikeModels")
 
 # Model 1: Baseline (Mean)
