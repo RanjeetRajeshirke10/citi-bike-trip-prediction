@@ -10,7 +10,7 @@ print(f"scikit-learn version: {sklearn.__version__}")
 print("Logging in to Hopsworks...")
 project = hopsworks.login(
     host="c.app.hopsworks.ai",
-    project="citi_bikes_project",
+    project="Citibiketrips",
     api_key_value=os.getenv("HOPSWORKS_API_KEY")
 )
 print("Logged in successfully.")
