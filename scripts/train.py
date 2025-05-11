@@ -21,8 +21,8 @@ project = hopsworks.login(
 )
 print("Logged in successfully.")
 
-# Step 2: Set MLflow tracking URI to Hopsworks
-tracking_uri = project.get_mlflow_tracking_uri()
+# Step 2: Manually set MLflow tracking URI for Hopsworks
+tracking_uri = f"https://c.app.hopsworks.ai/p/1228950/mlflow"
 mlflow.set_tracking_uri(tracking_uri)
 print("MLflow tracking URI set to:", mlflow.get_tracking_uri())
 
