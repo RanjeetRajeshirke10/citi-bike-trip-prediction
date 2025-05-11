@@ -20,3 +20,4 @@ jobs:
       env:
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
       run: python scripts/infer.py
+
