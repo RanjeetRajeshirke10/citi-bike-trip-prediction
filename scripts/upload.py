@@ -2,6 +2,7 @@ import hopsworks
 import mlflow
 import os
 import pandas as pd
+import urllib.parse
 
 # Step 1: Log in to Hopsworks
 project = hopsworks.login(
@@ -15,16 +16,23 @@ mr = project.get_model_registry()
 
 # Step 3: Get the latest run for LightGBM Full
 runs = mlflow.search_runs(experiment_names=["CitiBikeModels"])
+if runs.empty:
+    raise ValueError("No runs found for experiment 'CitiBikeModels'. Ensure train.py ran successfully.")
 lightgbm_full_run = runs[runs["tags.mlflow.runName"] == "LightGBM_Full"].iloc[-1]
 mae = lightgbm_full_run["metrics.MAE"]
 
-# Step 4: Hardcode the model path (update the run ID after running train.py)
-model_path = r"C:\Users\ranje\Jupyter Notebooks\Sem 2\CDA ML\Citi_Bike_Trip\mlruns\473768752618069851\ed9b647c35784c1f96515b3d16c03b91\artifacts\model"
-print(f"Hardcoded Model Path: {model_path}")
+# Step 4: Fix the artifact path for the current environment
+artifact_uri = lightgbm_full_run["artifact_uri"]
+decoded_uri = urllib.parse.unquote(artifact_uri)
+cleaned_uri = decoded_uri.replace("file://", "").lstrip(os.sep)
+model_path = os.path.normpath(os.path.join(cleaned_uri, "model"))
+print(f"Model Path: {model_path}")
+
+# Verify the path exists
 if os.path.exists(model_path):
     print("Model directory exists! Contents:", os.listdir(model_path))
 else:
-    print("Model directory does NOT exist!")
+    print("Model directory does NOT exist! Check MLflow run artifacts.")
     raise FileNotFoundError(f"Model path {model_path} does not exist!")
 
 # Step 5: Load the training data for input example
@@ -35,11 +43,10 @@ model = mr.sklearn.create_model(
     name="citi_bike_trip_predictor",
     metrics={"mae": mae},
     description="Model to predict Citi Bike trip counts for top 3 stations using LightGBM Full",
-    input_example=X_train.head(5),
-    version=1
+    version=2  # Increment version since version 1 exists
 )
 
 # Step 7: Save the model
 model.save(model_path)
 
-print(f"Model 'citi_bike_trip_predictor' (version 1) uploaded to Hopsworks with MAE: {mae}")
+print(f"Model 'citi_bike_trip_predictor' (version 2) uploaded to Hopsworks with MAE: {mae}")
