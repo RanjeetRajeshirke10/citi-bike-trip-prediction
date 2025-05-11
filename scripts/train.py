@@ -8,6 +8,9 @@ import mlflow
 import mlflow.sklearn
 import os
 
+# Set MLflow tracking URI to the current workspace
+mlflow.set_tracking_uri("file://./mlruns")
+
 # Step 1: Load the processed data
 df = pd.read_csv('data/processed_trips_top_3.csv')
 df['start_hour'] = pd.to_datetime(df['start_hour'])
@@ -53,6 +56,8 @@ with mlflow.start_run(run_name="LightGBM_Full"):
     mae = mean_absolute_error(y_test, predictions)
     mlflow.log_metric("MAE", mae)
     mlflow.sklearn.log_model(model, "model", input_example=X_train.head(5))
+    os.environ["MLFLOW_RUN_ID"] = mlflow.active_run().info.run_id
+    os.environ["MODEL_MAE"] = str(mae)
     print(f"LightGBM Full MAE: {mae}")
 
 # Model 3: LightGBM with feature reduction (top 10 features)
