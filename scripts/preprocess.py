@@ -1,48 +1,40 @@
 import pandas as pd
-import hopsworks
 import os
 
-# Step 1: Load raw data
-print("Loading raw data...")
-df = pd.read_csv('data/raw_trips.csv')
-print("Raw data shape:", df.shape)
+# Directory containing the raw data files
+data_dir = "data"
+output_file = "data/processed_trips_top_3.csv"
 
-# Step 2: Preprocess data
-df['starttime'] = pd.to_datetime(df['starttime'])
-df['start_hour'] = df['starttime'].dt.floor('H')
+# Step 1: Load all CSV files (excluding processed_trips_top_3.csv)
+files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv') and f != 'processed_trips_top_3.csv']
+if not files:
+    raise FileNotFoundError("No raw Citi Bike trip data files found in 'data/' directory. Expected files like '2023*-citibike-tripdata.csv'.")
 
-# Select top 3 stations by trip count
-top_stations = df['start_station_name'].value_counts().head(3).index
-df = df[df['start_station_name'].isin(top_stations)].copy()
-print("Data after filtering top 3 stations, shape:", df.shape)
+df_list = []
+for file in files:
+    print(f"Loading file: {file}")
+    df = pd.read_csv(file)
+    df_list.append(df)
 
-# Aggregate trips by station and hour
-df = df.groupby(['start_station_name', 'start_hour']).size().reset_index(name='trip_count')
-print("Data after aggregation, shape:", df.shape)
+if not df_list:
+    raise ValueError("No data loaded. Ensure raw data files are present and not empty.")
 
-# Step 3: Save processed data
-df.to_csv('data/processed_trips_top_3.csv', index=False)
-print("Processed data saved to 'data/processed_trips_top_3.csv'")
+df = pd.concat(df_list, ignore_index=True)
 
-# Step 4: Log in to Hopsworks
-print("Logging in to Hopsworks...")
-project = hopsworks.login(
-    host="c.app.hopsworks.ai",
-    project="CitiBikeTrip",
-    api_key_value=os.getenv("HOPSWORKS_API_KEY")
-)
-print("Logged in successfully.")
+# Step 2: Clean and preprocess the data
+df = df.dropna(subset=['start_station_name', 'started_at'])
+df['started_at'] = pd.to_datetime(df['started_at'])
+df['start_hour'] = df['started_at'].dt.floor('H')
+df['trip_count'] = 1
 
-# Step 5: Get Feature Store
-fs = project.get_feature_store()
-print("Feature Store retrieved:", fs)
+# Step 3: Aggregate by station and hour
+station_hour_counts = df.groupby(['start_station_name', 'start_hour'])['trip_count'].sum().reset_index()
 
-# Step 6: Save to Feature Group
-fg = fs.get_or_create_feature_group(
-    name="citi_bike_trips_fg",
-    version=1,
-    description="Processed trip counts for top 3 stations",
-    primary_key=['start_station_name', 'start_hour']
-)
-fg.insert(df, write_options={'wait': True})
-print("Data inserted successfully into 'citi_bike_trips_fg'.")
+# Step 4: Select top 3 stations by total trips
+total_trips = df.groupby('start_station_name')['trip_count'].sum().reset_index()
+top_3_stations = total_trips.nlargest(3, 'trip_count')['start_station_name']
+df_top_3 = station_hour_counts[station_hour_counts['start_station_name'].isin(top_3_stations)]
+
+# Step 5: Save the processed data
+df_top_3.to_csv(output_file, index=False)
+print(f"Processed data saved to {output_file}")
