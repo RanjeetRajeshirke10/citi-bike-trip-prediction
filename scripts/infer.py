@@ -4,12 +4,13 @@ import os
 import joblib
 import sklearn
 
+
 print(f"scikit-learn version: {sklearn.__version__}")
 # Step 1: Log in to Hopsworks
 print("Logging in to Hopsworks...")
 project = hopsworks.login(
     host="c.app.hopsworks.ai",
-    project="CitiBikeTrip",
+    project="citi_bikes_project",
     api_key_value=os.getenv("HOPSWORKS_API_KEY")
 )
 print("Logged in successfully.")
@@ -27,25 +28,18 @@ df = fg.read()
 print("Data loaded, shape:", df.shape)
 df['start_hour'] = pd.to_datetime(df['start_hour'])
 
-# Step 4: Create lag features
+# Step 4: Create lag features (same as training)
 print("Creating lag features...")
 all_station_data = []
 for station in df['start_station_name'].unique():
     station_data = df[df['start_station_name'] == station].sort_values('start_hour').copy()
-    print(f"Station {station} has {len(station_data)} rows.")
-    if len(station_data) > 0:  # Use any available data, even if < 672
-        lag_columns = [station_data['trip_count'].shift(lag) for lag in range(1, min(len(station_data), 673))]
-        lag_df = pd.concat([station_data.head(len(lag_columns))] + [pd.Series(col, name=f'lag_{lag}') for lag, col in enumerate(lag_columns, 1)], axis=1)
-        lag_df = lag_df.dropna()
-        if not lag_df.empty:
-            all_station_data.append(lag_df)
-
-if not all_station_data:
-    raise Exception("No stations have sufficient data to create lag features.")
+    lag_columns = [station_data['trip_count'].shift(lag) for lag in range(1, 673)]
+    lag_df = pd.concat([station_data] + [pd.Series(col, name=f'lag_{lag}') for lag, col in enumerate(lag_columns, 1)], axis=1)
+    all_station_data.append(lag_df)
 
 df = pd.concat(all_station_data, ignore_index=True)
 df = df.dropna()
-X = df[[f'lag_{i}' for i in range(1, min(673, df.shape[0])) if f'lag_{i}' in df.columns]]
+X = df[[f'lag_{i}' for i in range(1, 673)]]
 print("Lag features created, X shape:", X.shape)
 
 # Step 5: Load the model from Hopsworks Model Registry
@@ -61,13 +55,8 @@ except Exception as e:
 
 # Step 6: Generate predictions
 print("Generating predictions...")
-if X.empty:
-    print("Warning: No valid lag features to predict. Saving empty DataFrame.")
-    df['predicted_trip_count'] = []
-else:
-    predictions = model.predict(X)
-    df = df.iloc[:len(predictions)].copy()  # Align DataFrame with predictions
-    df['predicted_trip_count'] = predictions
+predictions = model.predict(X)
+df['predicted_trip_count'] = predictions
 print("Predictions added to DataFrame, shape:", df.shape)
 
 # Step 7: Save predictions to a new Feature Group
