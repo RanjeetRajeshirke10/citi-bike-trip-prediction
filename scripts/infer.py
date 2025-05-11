@@ -40,8 +40,7 @@ X = df[[f'lag_{i}' for i in range(1, 673)]]
 print("Lag features created, X shape:", X.shape)
 
 # Step 5: Get the deployed model's serving endpoint
-# Replace with the actual serving endpoint URL from Hopsworks
-serving_url = "YOUR_SERVING_ENDPOINT_URL"  # e.g., "https://c.app.hopsworks.ai/p/1228950/models/citi_bike_trip_predictor/1/inference"
+serving_url = "https://citibiketrippredictor.citibiketrip.hopsworks.ai/v1/models/citibiketrippredictor:predict"
 print("Using serving URL:", serving_url)
 
 # Step 6: Generate predictions by calling the serving endpoint
