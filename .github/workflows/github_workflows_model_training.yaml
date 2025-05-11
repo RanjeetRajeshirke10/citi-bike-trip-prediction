@@ -2,7 +2,7 @@ name: Model Training
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # Run daily at 1 AM (after feature engineering)
+    - cron: '0 0 * * *'  # Run daily at midnight
   push:
     branches: [ main ]
 
@@ -26,8 +26,10 @@ jobs:
 
     - name: Train model
       run: python scripts/train.py
+      env:
+        HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
 
     - name: Upload model to Hopsworks
-      run: python scripts/infer.py
+      run: python scripts/upload.py
       env:
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
