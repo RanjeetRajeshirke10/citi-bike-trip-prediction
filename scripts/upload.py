@@ -1,8 +1,8 @@
 import hopsworks
-import mlflow
-import os
 import pandas as pd
-import urllib.parse
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+import mlflow.pyfunc
 
 # Step 1: Log in to Hopsworks
 project = hopsworks.login(
@@ -11,42 +11,45 @@ project = hopsworks.login(
     api_key_value=os.getenv("HOPSWORKS_API_KEY")
 )
 
-# Step 2: Get the Model Registry
+# Step 2: Get the Feature Store
+fs = project.get_feature_store()
+
+# Step 3: Load the latest data from the Feature Group
+fg = fs.get_feature_group(name="citi_bike_trips_fg", version=1)
+df = fg.read()
+df['start_hour'] = pd.to_datetime(df['start_hour'])
+
+# Step 4: Create lag features (same as training)
+all_station_data = []
+for station in df['start_station_name'].unique():
+    station_data = df[df['start_station_name'] == station].sort_values('start_hour').copy()
+    lag_columns = [station_data['trip_count'].shift(lag) for lag in range(1, 673)]
+    lag_df = pd.concat([station_data] + [pd.Series(col, name=f'lag_{lag}') for lag, col in enumerate(lag_columns, 1)], axis=1)
+    all_station_data.append(lag_df)
+
+df = pd.concat(all_station_data, ignore_index=True)
+df = df.dropna()
+X = df[[f'lag_{i}' for i in range(1, 673)]]
+
+# Step 5: Load the deployed model from Hopsworks
 mr = project.get_model_registry()
+model = mr.get_model("citi_bike_trip_predictor", version=2)
+model_dir = model.download()
+loaded_model = mlflow.pyfunc.load_model(model_dir)
 
-# Step 3: Get the latest run for LightGBM Full
-runs = mlflow.search_runs(experiment_names=["CitiBikeModels"])
-if runs.empty:
-    raise ValueError("No runs found for experiment 'CitiBikeModels'. Ensure train.py ran successfully.")
-lightgbm_full_run = runs[runs["tags.mlflow.runName"] == "LightGBM_Full"].iloc[-1]
-mae = lightgbm_full_run["metrics.MAE"]
+# Step 6: Generate predictions
+predictions = loaded_model.predict(X)
 
-# Step 4: Fix the artifact path for the current environment
-artifact_uri = lightgbm_full_run["artifact_uri"]
-decoded_uri = urllib.parse.unquote(artifact_uri)
-cleaned_uri = decoded_uri.replace("file://", "").lstrip(os.sep)
-model_path = os.path.normpath(os.path.join(cleaned_uri, "model"))
-print(f"Model Path: {model_path}")
+# Step 7: Add predictions to the DataFrame
+df['predicted_trip_count'] = predictions
 
-# Verify the path exists
-if os.path.exists(model_path):
-    print("Model directory exists! Contents:", os.listdir(model_path))
-else:
-    print("Model directory does NOT exist! Check MLflow run artifacts.")
-    raise FileNotFoundError(f"Model path {model_path} does not exist!")
-
-# Step 5: Load the training data for input example
-X_train = pd.read_csv('data/X_train.csv')
-
-# Step 6: Register the model
-model = mr.sklearn.create_model(
-    name="citi_bike_trip_predictor",
-    metrics={"mae": mae},
-    description="Model to predict Citi Bike trip counts for top 3 stations using LightGBM Full",
-    version=2  # Increment version since version 1 exists
+# Step 8: Save predictions to a new Feature Group or dataset
+prediction_fg = fs.get_or_create_feature_group(
+    name="citi_bike_predictions_fg",
+    version=1,
+    description="Predicted trip counts for top 3 stations",
+    primary_key=['start_station_name', 'start_hour', 'predicted_trip_count']
 )
+prediction_fg.insert(df[['start_station_name', 'start_hour', 'predicted_trip_count']], write_options={'wait': True})
 
-# Step 7: Save the model
-model.save(model_path)
-
-print(f"Model 'citi_bike_trip_predictor' (version 2) uploaded to Hopsworks with MAE: {mae}")
+print("Predictions generated and saved to Hopsworks Feature Group.")
