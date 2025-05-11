@@ -1,4 +1,5 @@
 import hopsworks
+import mlflow
 import os
 import pandas as pd
 
@@ -6,16 +7,18 @@ import pandas as pd
 project = hopsworks.login(
     host="c.app.hopsworks.ai",
     project="CitiBikeTrip",
-    api_key_value="DIrr083Keer9GlOI.3FUt2ZiErZwV9gDGP0i5fCINcaNopLE4YfPoswUh3HrGaepEZyMdO5VQkxFsl4d0"
+    api_key_value=os.getenv("HOPSWORKS_API_KEY")
 )
 
 # Step 2: Get the Model Registry
 mr = project.get_model_registry()
 
-# Step 3: Hardcode the MAE (from the latest run output: 5.6617)
-mae = 5.6617  # Update this if the MAE changes in the new run
+# Step 3: Get the latest run for LightGBM Full
+runs = mlflow.search_runs(experiment_names=["CitiBikeModels"])
+lightgbm_full_run = runs[runs["tags.mlflow.runName"] == "LightGBM_Full"].iloc[-1]
+mae = lightgbm_full_run["metrics.MAE"]
 
-# Step 4: Hardcode the model path
+# Step 4: Hardcode the model path (update the run ID after running train.py)
 model_path = r"C:\Users\ranje\Jupyter Notebooks\Sem 2\CDA ML\Citi_Bike_Trip\mlruns\473768752618069851\ed9b647c35784c1f96515b3d16c03b91\artifacts\model"
 print(f"Hardcoded Model Path: {model_path}")
 if os.path.exists(model_path):
@@ -25,7 +28,7 @@ else:
     raise FileNotFoundError(f"Model path {model_path} does not exist!")
 
 # Step 5: Load the training data for input example
-X_train = pd.read_csv('X_train.csv')
+X_train = pd.read_csv('data/X_train.csv')
 
 # Step 6: Register the model
 model = mr.sklearn.create_model(
