@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import mlflow.pyfunc
+import os
 
 # Step 1: Log in to Hopsworks
 project = hopsworks.login(
