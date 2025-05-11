@@ -7,10 +7,9 @@ from sklearn.feature_selection import SelectKBest, f_regression
 import mlflow
 import mlflow.sklearn
 import os
-import urllib.parse
 
 # Step 1: Load the processed data
-df = pd.read_csv('processed_trips_top_3.csv')
+df = pd.read_csv('data/processed_trips_top_3.csv')
 df['start_hour'] = pd.to_datetime(df['start_hour'])
 
 # Step 2: Create lag features efficiently
@@ -30,10 +29,10 @@ y = df['trip_count']
 
 # Step 4: Train/test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-X_train.to_csv('X_train.csv', index=False)
-X_test.to_csv('X_test.csv', index=False)
-y_train.to_csv('y_train.csv', index=False)
-y_test.to_csv('y_test.csv', index=False)
+X_train.to_csv('data/X_train.csv', index=False)
+X_test.to_csv('data/X_test.csv', index=False)
+y_train.to_csv('data/y_train.csv', index=False)
+y_test.to_csv('data/y_test.csv', index=False)
 
 # Step 5: Set MLflow experiment
 mlflow.set_experiment("CitiBikeModels")
@@ -47,7 +46,7 @@ with mlflow.start_run(run_name="Baseline"):
     print(f"Baseline MAE: {mae}")
 
 # Model 2: LightGBM with 28-day lags
-with mlflow.start_run(run_name="LightGBM_Full") as run:
+with mlflow.start_run(run_name="LightGBM_Full"):
     model = GradientBoostingRegressor()
     model.fit(X_train, y_train)
     predictions = model.predict(X_test)
@@ -55,17 +54,6 @@ with mlflow.start_run(run_name="LightGBM_Full") as run:
     mlflow.log_metric("MAE", mae)
     mlflow.sklearn.log_model(model, "model", input_example=X_train.head(5))
     print(f"LightGBM Full MAE: {mae}")
-    # Debug: Fix path and verify
-    artifact_uri = run.info.artifact_uri
-    decoded_uri = urllib.parse.unquote(artifact_uri)  # Decode %20 to spaces
-    cleaned_uri = decoded_uri.replace("file://", "").lstrip(os.sep)  # Remove leading separator
-    model_path = os.path.normpath(os.path.join(cleaned_uri, "model"))  # Normalize path
-    print(f"Artifact URI for LightGBM_Full: {artifact_uri}")
-    print(f"Model Path for LightGBM_Full: {model_path}")
-    if os.path.exists(model_path):
-        print("Model directory exists! Contents:", os.listdir(model_path))
-    else:
-        print("Model directory does NOT exist!")
 
 # Model 3: LightGBM with feature reduction (top 10 features)
 selector = SelectKBest(score_func=f_regression, k=10)
