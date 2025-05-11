@@ -9,7 +9,7 @@ import os
 project = hopsworks.login(
     host="c.app.hopsworks.ai",
     project="CitiBikeTrip",
-    api_key_value=os.getenv("HOPSWORKS_API_KEY")
+    api_key_value=os.getenv("DIrr083Keer9GlOI.3FUt2ZiErZwV9gDGP0i5fCINcaNopLE4YfPoswUh3HrGaepEZyMdO5VQkxFsl4d0")
 )
 
 # Step 2: Get the Feature Store
