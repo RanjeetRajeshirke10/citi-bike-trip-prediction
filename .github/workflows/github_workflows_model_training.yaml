@@ -28,6 +28,6 @@ jobs:
       run: python scripts/train.py
 
     - name: Upload model to Hopsworks
-      run: python scripts/upload.py
+      run: python scripts/infer.py
       env:
         HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
