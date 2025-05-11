@@ -5,9 +5,20 @@ import os
 data_dir = "data"
 output_file = "data/processed_trips_top_3.csv"
 
-# Step 1: Load all CSV files
-files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv')]
-df_list = [pd.read_csv(file) for file in files]
+# Step 1: Load all CSV files (excluding processed_trips_top_3.csv)
+files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv') and f != 'processed_trips_top_3.csv']
+if not files:
+    raise FileNotFoundError("No raw Citi Bike trip data files found in 'data/' directory. Expected files like '2023*-citibike-tripdata.csv'.")
+
+df_list = []
+for file in files:
+    print(f"Loading file: {file}")
+    df = pd.read_csv(file)
+    df_list.append(df)
+
+if not df_list:
+    raise ValueError("No data loaded. Ensure raw data files are present and not empty.")
+
 df = pd.concat(df_list, ignore_index=True)
 
 # Step 2: Clean and preprocess the data
