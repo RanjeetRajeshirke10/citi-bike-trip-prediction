@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # Use Windows runner since your local setup is Windows
 
     steps:
     - uses: actions/checkout@v3
