@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # Use Windows runner since your local setup is Windows
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v3
@@ -23,8 +23,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run preprocessing
-      run: python scripts/preprocess.py
+    # Temporarily skip preprocessing since we're using preprocessed data
+    # - name: Run preprocessing
+    #   run: python scripts/preprocess.py
 
     - name: Train model
       run: python scripts/train.py
