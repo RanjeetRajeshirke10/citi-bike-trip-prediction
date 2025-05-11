@@ -7,7 +7,7 @@ import joblib
 print("Logging in to Hopsworks...")
 project = hopsworks.login(
     host="c.app.hopsworks.ai",
-    project="citi_bikes_project",
+    project="CitiBikeTrip",
     api_key_value=os.getenv("HOPSWORKS_API_KEY")
 )
 print("Logged in successfully.")
