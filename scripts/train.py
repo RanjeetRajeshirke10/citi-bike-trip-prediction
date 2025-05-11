@@ -8,8 +8,18 @@ import mlflow
 import mlflow.sklearn
 import os
 
-# Set MLflow tracking URI to the current workspace
-mlflow.set_tracking_uri("file://./mlruns")
+# Debug: Print current working directory
+print("Current working directory:", os.getcwd())
+
+# Create mlruns directory if it doesn't exist
+mlruns_dir = os.path.join(os.getcwd(), "mlruns")
+if not os.path.exists(mlruns_dir):
+    os.makedirs(mlruns_dir)
+    print(f"Created mlruns directory: {mlruns_dir}")
+
+# Set MLflow tracking URI to the local mlruns directory
+mlflow.set_tracking_uri(mlruns_dir)
+print("MLflow tracking URI set to:", mlflow.get_tracking_uri())
 
 # Step 1: Load the processed data
 df = pd.read_csv('data/processed_trips_top_3.csv')
