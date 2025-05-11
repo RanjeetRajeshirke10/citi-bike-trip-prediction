@@ -29,10 +29,16 @@ print("Creating lag features...")
 all_station_data = []
 for station in df['start_station_name'].unique():
     station_data = df[df['start_station_name'] == station].sort_values('start_hour').copy()
+    print(f"Station {station} has {len(station_data)} rows.")
     if len(station_data) >= 672:  # Ensure enough data for 672 lags
         lag_columns = [station_data['trip_count'].shift(lag) for lag in range(1, 673)]
         lag_df = pd.concat([station_data] + [pd.Series(col, name=f'lag_{lag}') for lag, col in enumerate(lag_columns, 1)], axis=1)
         all_station_data.append(lag_df)
+    else:
+        print(f"Skipping station {station} due to insufficient data (< 672 rows).")
+
+if not all_station_data:
+    raise Exception("No stations have sufficient data (>= 672 rows) to create lag features.")
 
 df = pd.concat(all_station_data, ignore_index=True)
 df = df.dropna()
